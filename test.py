@@ -1,6 +1,7 @@
 import time
 import os
 from funcs import compute_sim, check_face
+from test1 import test
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -80,7 +81,20 @@ class FaceRecognitionApp(App):
             frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
             self.count += 1
             faces = self.face_detection.get(frame)
-            self.current_frame = frame  # Сохраняем текущий кадр для последующего использования
+            if faces is not None:
+                for face in faces:
+                    if True:
+                        bbox = check_face(face)
+                        if bbox is not False:
+                            x1, y1, x2, y2 = [int(val) for val in bbox]
+                            # Получение размеров изображения
+                            height, width, _ = frame.shape
+                            x1 = max(0, x1 - 20)
+                            y1 = max(0, y1 - 20)
+                            x2 = min(width, x2 + 20)
+                            y2 = min(height, y2 + 20)
+                            self.current_frame = frame[y1:y2, x1:x2]
+            #self.current_frame = frame  # Сохраняем текущий кадр для последующего использования
 
             # Преобразуем кадр в текстуру и отображаем его
             frame = cv2.flip(frame, 1)  # Отразить кадр по вертикали (по умолчанию он отображается вверх ногами)
@@ -96,8 +110,13 @@ class FaceRecognitionApp(App):
             surname = self.textinput_surname.text
             person_id = self.textinput_id.text
 
+            test(self.current_frame, "./resources/anti_spoof_models", 0)
+
             # Передаем текущий кадр и данные в функцию add_to_db
-            self.add_to_db(self.current_frame, name, surname, person_id)
+            #self.add_to_db(self.current_frame, name, surname, person_id)
+
+
+
 
     def add_to_db(self, img, name, surname, person_id):
         face = self.face_recognition.get(img)

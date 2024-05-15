@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 from pymongo import MongoClient
 from dotenv import load_dotenv
-
+from test1 import test
 load_dotenv()
 
 
@@ -26,8 +26,10 @@ class FaceRecognitionApp(App):
 
     def build(self):
         layout = BoxLayout(orientation='vertical')
-        self.camera = Camera(play=True)
-        layout.add_widget(self.camera)
+
+        # Заменяем камеру Kivy на камеру OpenCV
+        self.cap = cv2.VideoCapture("http://192.168.0.106:4747/video")
+
         self.face_detection = insightface.app.FaceAnalysis(allowed_modules='detection')
         self.face_recognition = insightface.app.FaceAnalysis()
         self.face_detection.prepare(ctx_id=-1, det_size=(640, 480))
@@ -38,14 +40,21 @@ class FaceRecognitionApp(App):
         return layout
 
     def update(self, dt):
-        frame = self.camera.texture
-        if frame is not None:
-            frame = np.frombuffer(frame.pixels, dtype=np.uint8)
-            frame = frame.reshape(self.camera.texture.height, self.camera.texture.width, 4)
+        ret, frame = self.cap.read()
+
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+            frame = cv2.flip(frame, 1)
+            buf1 = frame.tostring()
+
+            texture1 = Texture.create(
+                size=(frame.shape[1], frame.shape[0]), colorfmt='rgba')
+            texture1.blit_buffer(buf1, colorfmt='rgba', bufferfmt='ubyte')
+            self.camera.texture = texture1
+
             frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
             self.count += 1
             faces = self.face_detection.get(frame)
-
             if faces is not None:
                 for face in faces:
                     if self.count % 30 == 0:
@@ -59,8 +68,9 @@ class FaceRecognitionApp(App):
                             x2 = min(width, x2 + 20)
                             y2 = min(height, y2 + 20)
                             cropped_image = frame[y1:y2, x1:x2]
-                            name = self.recognition_frame(cropped_image)
-                            print(name)
+                            if test(cropped_image):
+                                name = self.recognition_frame(cropped_image)
+                                print(name)
                     x1, y1, x2, y2 = face.bbox.astype(int)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
@@ -73,7 +83,6 @@ class FaceRecognitionApp(App):
 
     def recognition_frame(self, face_frame):
         face_data = self.face_recognition.get(face_frame)
-
         try:
             if np.all(face_data[0].embedding) == 0:
                 print('False')
